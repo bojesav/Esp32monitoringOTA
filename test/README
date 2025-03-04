@@ -1,11 +1,15 @@
 
-This directory is intended for PlatformIO Test Runner and project tests.
+# ESP32 Monitoring Water Tofu Project
 
-Unit Testing is a software testing method by which individual units of
-source code, sets of one or more MCU program modules together with associated
-control data, usage procedures, and operating procedures, are tested to
-determine whether they are fit for use. Unit testing finds problems early
-in the development cycle.
+## Overview
 
-More information about PlatformIO Unit Testing:
-- https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+This project is designed for monitoring ESP32 devices using OTA (Over-the-Air) updates and GPIO Viewer. It provides a comprehensive solution for managing and monitoring ESP32-based IoT devices.
+
+![ESP IoT](https://example.com/esp-iot-image.png)
+
+## Features
+
+- **OTA Updates**: Seamlessly update your ESP32 devices over the air without the need for physical access.
+- **GPIO Viewer**: Monitor and control the GPIO pins of your ESP32 devices in real-time.
+
+
