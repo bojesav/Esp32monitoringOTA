@@ -1,23 +1,38 @@
 #include <Arduino.h>
 #include <gpio_viewer.h>
-#include "src.h"              // rename the "_secrets.h" file before building
-#include <WiFi.h>             // Include WiFi library for ESP32
-#include <ArduinoOTA.h>       // Include ArduinoOTA library for OTA updates
+#include "src.h"              
+#include <WiFi.h>
+#include <ArduinoOTA.h>
 
-#define DEMO_PIN  17
+#define relay_pin  18
+#define relay_pin2  17
+#define relay_pin1  16
+#define LED_BUILTIN 2         
 
 GPIOViewer gpioViewer;
-bool pinState = false;
+bool pinState = true;
+
+void RelayTask(void *pvParameters) {
+  while (1) {
+    pinState = !pinState;
+    digitalWrite(relay_pin2, pinState);
+    log_i("Current pin state: %d", pinState);
+    vTaskDelay(30000 / portTICK_PERIOD_MS); // Delay 1 menit
+  }
+}
 
 void setup() {
-  delay(500);
   Serial.begin(115200);
-  Serial.setDebugOutput(true);    // send ESP inbuilt log messages to Serial
+  Serial.setDebugOutput(true);
   Serial.println(__FILE__);
 
-  pinMode(DEMO_PIN, OUTPUT);
+  pinMode(relay_pin, OUTPUT);
+  pinMode(relay_pin1, OUTPUT);
+  pinMode(relay_pin2, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);   
+  digitalWrite(LED_BUILTIN, LOW); 
 
-  // Connect to Wi-Fi
+  WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Connecting to Wi-Fi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -26,47 +41,43 @@ void setup() {
   }
   Serial.println("\nConnected to Wi-Fi!");
 
-  // Initialize GPIOViewer
   gpioViewer.setSamplingInterval(125);
   gpioViewer.begin();
 
-  // Configure OTA
-  ArduinoOTA.setHostname("ESP32-OTA-Demo"); // Set a unique hostname for your device
+  // OTA Setup
+  ArduinoOTA.setHostname("ESP32-OTA-Demo");
   ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else { // U_SPIFFS
-      type = "filesystem";
-    }
-    Serial.println("Start updating " + type);
+    digitalWrite(LED_BUILTIN, HIGH);
+    Serial.println("Start OTA Update");
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nOTA Update Complete!");
+    digitalWrite(LED_BUILTIN, LOW);
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    Serial.printf("Error[%u]\n", error);
+    digitalWrite(LED_BUILTIN, LOW);
   });
   ArduinoOTA.begin();
   Serial.println("OTA Ready!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+
+  // Membuat Task FreeRTOS untuk Relay
+  xTaskCreatePinnedToCore(
+    RelayTask,     // Fungsi task
+    "RelayTask",   // Nama task
+    2048,          // Ukuran stack
+    NULL,          // Parameter task
+    1,             // Prioritas task
+    NULL,          // Handle task
+    0              // Core 0 (agar OTA tetap di Core 1)
+  );
 }
 
 void loop() {
-  ArduinoOTA.handle(); // Handle OTA updates
-
-  pinState = !pinState;
-  digitalWrite(DEMO_PIN, pinState);
-  log_i("Current pin state: %d", pinState);
-  Serial.println();
-  delay(1000);
+  ArduinoOTA.handle(); // Tetap jalankan OTA tanpa terganggu task relay
 }
